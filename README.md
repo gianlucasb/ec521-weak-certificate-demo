@@ -98,7 +98,14 @@ eMudhra's own root and once cross-signed by Sectigo's "AAA Certificate Services"
 .venv/bin/python -I crack_real.py certs/*.pem
 ```
 
-Expected output: 10 certificates, 5 distinct keys (`d` = 66, 115, 156, 230, 237)
+Add `--steps` to narrate each stage of the attack (read `Q`, the search space,
+the guesses and the match, the signing proof), best on a single certificate:
+
+```sh
+.venv/bin/python -I crack_real.py --steps certs/EM_DV_TLS_CA_-_G3B__18286207191.pem
+```
+
+Expected output of the plain run: 10 certificates, 5 distinct keys (`d` = 66, 115, 156, 230, 237)
 recovered in well under a second. Both certificates for the same CA give the
 same `d`, so they share a key.
 

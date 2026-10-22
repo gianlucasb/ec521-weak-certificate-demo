@@ -3,9 +3,9 @@
 
 Reads PEM certificates, and for each P-384 public key tries d = 1..255
 (the keys have a single non-zero byte). Public data only; nothing is
-contacted. Usage: .venv/bin/python crack_real.py certs/*.pem
+contacted. Usage: .venv/bin/python crack_real.py [--steps] certs/*.pem
 """
-import sys
+import argparse
 import time
 from pathlib import Path
 
@@ -16,11 +16,24 @@ from cryptography.hazmat.primitives.asymmetric import ec
 CURVE = ec.SECP384R1()
 
 
-def crack(pub, limit=255):
+def short(n):
+    h = f"{n:096x}"
+    return f"{h[:12]}...{h[-6:]}"
+
+
+def crack(pub, limit=255, steps=False):
     t = pub.public_numbers()
+    if steps:
+        print(f"  step 2: d is one byte, so only {limit} candidates (1..{limit}), not 2^384")
+        print(f"  step 3: compute d*G for each d and\n  step 4: compare with Q.x = {short(t.x)}")
     for d in range(1, limit + 1):
         p = ec.derive_private_key(d, CURVE).public_key().public_numbers()
-        if (p.x, p.y) == (t.x, t.y):
+        hit = (p.x, p.y) == (t.x, t.y)
+        if steps and (d <= 3 or hit):
+            print(f"    d = {d:3} -> d*G.x = {short(p.x)}  {'MATCH' if hit else 'no match'}")
+        elif steps and d == 4:
+            print("    ...")
+        if hit:
             return d
     return None
 
@@ -34,14 +47,21 @@ def prove(cert, d):
     return sig
 
 
-def main(paths):
+def main(paths, steps=False):
     found = {}
     t0 = time.perf_counter()
     for path in map(Path, paths):
         cert = x509.load_pem_x509_certificate(path.read_bytes())
         cn = cert.subject.rfc4514_string()
         issuer = cert.issuer.rfc4514_string()
-        d = crack(cert.public_key())
+        if steps:
+            print(f"\n=== {path.name} ===")
+            q = cert.public_key().public_numbers()
+            print(f"  step 1: read public key Q from the certificate ({cn})")
+            print(f"    Q.x = {short(q.x)}")
+        d = crack(cert.public_key(), steps=steps)
+        if steps and d:
+            print(f"  step 5: sign a challenge with d={d}, verify with Q from the certificate")
         status = f"d = {d} (0x{d:02x})" if d else "not in 1..255"
         print(f"{cn:22} issued by {issuer:32} -> {status}")
         if d:
@@ -57,4 +77,8 @@ def main(paths):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--steps", action="store_true", help="narrate each step of the attack")
+    ap.add_argument("certs", nargs="+")
+    a = ap.parse_args()
+    main(a.certs, a.steps)
