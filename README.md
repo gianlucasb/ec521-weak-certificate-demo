@@ -162,17 +162,6 @@ slow point multiplication per guess (about 4,000 guesses per second).
 TLS you'd extend it to save the leaf key and run `openssl s_server`, then connect
 with `curl --cacert weak_ca.pem https://bank.example:4433 --resolve ...`.
 
-## Suggested 10-minute flow
-
-1. Explain how a CA key is supposed to look (384 random bits) and what a
-   forged certificate lets an attacker do.
-2. Run Part 1 and show the real keys falling in under a second.
-3. Run Part 2 at 8 bits, then at 16 bits, to show the forgery and the scaling.
-4. Discuss: why structural checks didn't catch it, why the cross-signing
-   mattered, and how a ceremony script bug (not a bad algorithm) caused this.
-   Mention what could have caught it: key-quality linting, such as checking that
-   `d` isn't tiny, and independent review of ceremony output.
-
 ## Scope and ethics
 
 Everything here uses public, revoked certificates or locally generated toy keys.
