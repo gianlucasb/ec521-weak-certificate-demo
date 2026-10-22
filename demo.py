@@ -101,18 +101,15 @@ def main():
     print("[3] Forged certificate for bank.example signed with the recovered CA key.")
 
     # 4. Verify with openssl, as a real client would
-    with tempfile.TemporaryDirectory() as tmp:
-        ca_pem, leaf_pem = Path(tmp, "ca.pem"), Path(tmp, "leaf.pem")
-        ca_pem.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
-        leaf_pem.write_bytes(forged.public_bytes(serialization.Encoding.PEM))
-        out = subprocess.run(
-            ["openssl", "verify", "-CAfile", str(ca_pem), str(leaf_pem)],
-            capture_output=True, text=True,
-        )
-        print("[4] openssl verify:", (out.stdout + out.stderr).strip().replace(str(tmp) + "/", ""))
-        Path("forged_leaf.pem").write_bytes(leaf_pem.read_bytes())
-        Path("weak_ca.pem").write_bytes(ca_pem.read_bytes())
-    print("    (saved weak_ca.pem and forged_leaf.pem in the current directory)\n")
+    ca_pem, leaf_pem = Path("weak_ca.pem"), Path("forged_leaf.pem")
+    ca_pem.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
+    leaf_pem.write_bytes(forged.public_bytes(serialization.Encoding.PEM))
+    cmd = ["openssl", "verify", "-CAfile", str(ca_pem), str(leaf_pem)]
+    print("[4] Saved weak_ca.pem and forged_leaf.pem. Verify it yourself with:")
+    print("      " + " ".join(cmd))
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    print("    openssl says:", (out.stdout + out.stderr).strip())
+    print("    (inspect with: openssl x509 -in forged_leaf.pem -noout -subject -issuer)\n")
 
     # 5. Contrast
     rate = tries / dt if dt > 0 else float("inf")
