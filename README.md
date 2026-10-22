@@ -18,6 +18,67 @@ created a second, weak key pair on the HSM and then used it for the CSR.
 
 Mozilla incident: <https://bugzilla.mozilla.org/show_bug.cgi?id=2083449>
 
+## How the crack works, step by step
+
+**Background.** An elliptic-curve key pair on P-384 is defined by:
+- `G`, a fixed, public base point on the curve (the same for everyone).
+- `d`, the private key, a secret integer.
+- `Q = d·G`, the public key: `G` added to itself `d` times. `Q` is published
+  in the certificate.
+
+Going from `d` to `Q` is fast. Going from `Q` back to `d` is the elliptic-curve
+discrete log problem, and there is no known shortcut. That is only safe if `d`
+is drawn from a huge space. The attack below needs no cleverness, only a small
+search space.
+
+**Step 1: Get the public key.** A certificate is public. Parse it and read the
+subject public key, a point `Q = (x, y)`. In the code:
+`cert.public_key().public_numbers()`.
+
+**Step 2: Notice the search space is tiny.** A P-384 private key is 48 bytes. In
+these CAs, 47 of the bytes are zero, so `d` is one of `1..255`. Zero is not a
+valid key, so there are 255 candidates instead of about 2^384.
+
+**Step 3: Try every candidate.** For each `d = 1, 2, 3, ...`, compute `d·G`
+(`ec.derive_private_key(d, CURVE)` does this, and `.public_key()` gives the
+point). This is the same operation a CA performs when it generates a key. We
+are just doing it for every possible secret.
+
+**Step 4: Compare with the certificate.** If `d·G` equals the `Q` from the
+certificate, the secret is `d`. It is the only match, because different
+private keys give different public keys.
+
+**Step 5: Prove it.** Sign a message with the recovered `d`, then verify the
+signature using only the public key from the certificate. If verification
+passes, we hold a working private key for that CA. This is what
+`crack_real.py` prints as `OK`.
+
+**Step 6: Use it.** Anyone with this key can sign certificates that chain to
+the CA, so they are trusted wherever the CA was. That is why the CAs had to be
+revoked. `demo.py` shows this step on a toy CA.
+
+**Cost.** The search takes at most `2^bits - 1` point multiplications. 8 bits
+is 255 guesses, which takes milliseconds. 16 bits is 65,535 guesses, which
+takes seconds. Every extra bit doubles the work, so a real 384-bit key is far
+out of reach.
+
+**Try it by hand** (in `.venv/bin/python`):
+
+```python
+from cryptography import x509
+from cryptography.hazmat.primitives.asymmetric import ec
+
+cert = x509.load_pem_x509_certificate(open("certs/<any file>.pem", "rb").read())
+Q = cert.public_key().public_numbers()
+for d in range(1, 256):
+    P = ec.derive_private_key(d, ec.SECP384R1()).public_key().public_numbers()
+    if (P.x, P.y) == (Q.x, Q.y):
+        print("found d =", d)
+        break
+```
+
+The code in `crack_real.py` is the same loop plus the proof step.
+
 ## Setup
 
 ```sh
