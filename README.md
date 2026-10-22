@@ -105,7 +105,7 @@ the guesses and the match, the signing proof), best on a single certificate:
 .venv/bin/python -I crack_real.py --steps certs/EM_DV_TLS_CA_-_G3B__18286207191.pem
 ```
 
-Expected output of the plain run: 10 certificates, 5 distinct keys (`d` = 66, 115, 156, 230, 237)
+Expected output of the plain run: 11 certificates, 6 distinct keys (`d` = 56, 66, 115, 156, 230, 237)
 recovered in well under a second. Both certificates for the same CA give the
 same `d`, so they share a key.
 
@@ -125,7 +125,7 @@ Talking points:
 
 ### Fetching more certificates
 
-Six of the sixteen certificates (EV G3C, OV TLS G3B/G3C, in both issuer
+Five of the sixteen certificates (one EV G3C, and OV TLS G3B/G3C in both issuer
 variants) aren't included because crt.sh rate-limited the download. To fetch
 them, search crt.sh for the CA names below and save the PEM from
 `https://crt.sh/?d=<id>` into `certs/`, with a pause between requests:
@@ -148,19 +148,37 @@ Steps it performs:
 1. Creates a P-384 CA whose private scalar has only `--bits` bits of entropy.
 2. Brute-forces `d` from the CA certificate's public key alone.
 3. Signs a forged leaf certificate for `bank.example` with the recovered key.
-4. Runs `openssl verify` on the forged certificate against the CA. It prints `OK`.
-5. Estimates the time to do the same to a properly random P-384 key
+4. Runs `openssl verify` on the forged certificate against the CA and prints
+   the exact command so you can repeat it. It prints `OK`.
+5. Starts a local TLS server with the forged certificate and connects to it
+   with a client that trusts only the weak CA and checks the name
+   `bank.example`. The client accepts it. As a control, it serves a certificate
+   signed with a random key (an attacker without `d`), and the client rejects
+   it with `CERTIFICATE_VERIFY_FAILED`. No hosts-file changes are needed.
+6. Estimates the time to do the same to a properly random P-384 key
    (about 10^104 years at the measured guess rate).
 
 It writes `weak_ca.pem` and `forged_leaf.pem` to the current directory (both
 git-ignored). Stay at 16 bits or below for a live run, because the search uses a
 slow point multiplication per guess (about 4,000 guesses per second).
 
-### Optional: show a TLS client accepting it
+### Show it with curl
 
-`demo.py` doesn't generate a leaf private key you can serve, so to show this over
-TLS you'd extend it to save the leaf key and run `openssl s_server`, then connect
-with `curl --cacert weak_ca.pem https://bank.example:4433 --resolve ...`.
+Add `--serve` to keep the forged server running after the demo finishes:
+
+```sh
+.venv/bin/python demo.py --serve
+```
+
+It prints a `curl` command with the port filled in. Run it in a second terminal:
+
+```sh
+curl --cacert weak_ca.pem --resolve bank.example:<port>:127.0.0.1 https://bank.example:<port>/
+```
+
+`curl` trusts only `weak_ca.pem` and accepts the page. Leave out `--cacert
+weak_ca.pem` and it fails with `unable to get local issuer certificate`, which
+shows the trust comes entirely from the weak CA. Press Ctrl-C to stop the server.
 
 ## Scope and ethics
 

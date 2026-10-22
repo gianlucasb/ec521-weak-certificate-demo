@@ -3,3 +3,5 @@ __pycache__/
 weak_ca.pem
 forged_leaf.pem
 .DS_Store
+forged_server.*.pem
+wrongkey_server.*.pem
