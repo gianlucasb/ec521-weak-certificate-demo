@@ -41,8 +41,16 @@ Expected output: 10 certificates, 5 distinct keys (`d` = 66, 115, 156, 230, 237)
 recovered in well under a second. Both certificates for the same CA give the
 same `d`, so they share a key.
 
+For each recovered key the script also prints:
+- `d` as a full 48-byte hex string, last byte in bold. It is 47 zero bytes
+  followed by one byte, which is the whole secret.
+- A proof of possession: it signs a challenge with the recovered key and
+  verifies the signature against the public key in the certificate. It prints
+  `OK`, and the script raises an error if verification fails.
+
 Talking points:
-- Print `d` as 48 bytes and point out the 47 leading zero bytes.
+- Point out the 47 leading zero bytes in `d`. The key looks like a normal
+  384-bit value but has one byte of content.
 - The two certificates per CA share a key, so the cross-signing by Sectigo
   extended trust to a key that anyone could recover.
 - This uses public data only and contacts no one.
