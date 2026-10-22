@@ -105,7 +105,7 @@ the guesses and the match, the signing proof), best on a single certificate:
 .venv/bin/python -I crack_real.py --steps certs/EM_DV_TLS_CA_-_G3B__18286207191.pem
 ```
 
-Expected output of the plain run: 11 certificates, 6 distinct keys (`d` = 56, 66, 115, 156, 230, 237)
+Expected output of the plain run: 16 certificates, 8 distinct keys (`d` = 4, 56, 66, 115, 155, 156, 230, 237)
 recovered in well under a second. Both certificates for the same CA give the
 same `d`, so they share a key.
 
@@ -123,15 +123,13 @@ Talking points:
   extended trust to a key that anyone could recover.
 - This uses public data only and contacts no one.
 
-### Fetching more certificates
+### Where the certificates came from
 
-Five of the sixteen certificates (one EV G3C, and OV TLS G3B/G3C in both issuer
-variants) aren't included because crt.sh rate-limited the download. To fetch
-them, search crt.sh for the CA names below and save the PEM from
-`https://crt.sh/?d=<id>` into `certs/`, with a pause between requests:
-
-`EM DV TLS CA - G3B/G3C`, `EM EV TLS CA - G3B/G3C`, `EM OV TLS CA - G3B/G3C`,
-`EM OV CS CA - G3B/G3C`
+`certs/` has all 16 certificates: 8 CAs (the six `EM DV/EV/OV TLS CA - G3B/G3C`
+and the two `EM OV CS CA - G3B/G3C`), each in two versions. The eight `d` values
+match the ones listed in the article. To fetch one yourself, search
+[crt.sh](https://crt.sh) for the CA name and save the PEM from
+`https://crt.sh/?d=<id>`. crt.sh rate-limits, so pause between requests.
 
 ## Part 2: forge a certificate with a toy CA
 
